@@ -10,6 +10,7 @@ public class Main {
         // 2. Instanciar productos usando Polimorfismo (tipo base Producto)
         Producto baseMatte = new ProductoRostro("R01", "Base Liquida Matte", 30.0, "Maybelline", "Grasa");
         Producto corrector = new ProductoRostro("R02", "Corrector Fit Me", 15.0, "Maybelline", "Mixta");
+         Producto baseluminosa = new ProductoRostro("B02", "1stscene", 50.0, "Atenea", "Normal");
         Producto rimel = new ProductoOjos("O01", "Pestañina Sky High", 18.0, "L'Oréal", true);
         Producto paletaSombras = new ProductoOjos("O02", "Paleta Nude", 45.0, "Urban Decay", false);
 
@@ -24,6 +25,7 @@ public class Main {
 
         // 5. Agregar registros al sistema (Requerimiento 6)
         transaccion.agregarProducto(baseMatte);
+        transaccion.agregarProducto(baseluminosa);
         transaccion.agregarProducto(corrector);
         transaccion.agregarProducto(rimel);
         transaccion.agregarProducto(paletaSombras);
