@@ -1,36 +1,123 @@
 package sistemamakeup;
 
+import java.util.Scanner;
+import java.util.List;
+
 public class Main {
     public static void main(String[] args) {
-        System.out.println("--- INICIANDO SISTEMA DE VENTAS DE MAQUILLAJE ---\n");
+        Scanner scanner = new Scanner(System.in);
 
-        // 1. Crear el cliente
-        Cliente cliente1 = new Cliente("Camila Restrepo", "camila@correo.com");
+        System.out.println("=================================================");
+        System.out.println("   SISTEMA DE GESTIÓN DE MAQUILLAJE   ");
+        System.out.println("=================================================");
 
-        // 2. Instanciar productos usando Polimorfismo (tipo base Producto)
-        Producto baseMatte = new ProductoRostro("R01", "Base Liquida Matte", 30.0, "Maybelline", "Grasa");
-        Producto corrector = new ProductoRostro("R02", "Corrector Fit Me", 15.0, "Maybelline", "Mixta");
-         Producto baseluminosa = new ProductoRostro("B02", "1stscene", 50.0, "Atenea", "Normal");
-        Producto rimel = new ProductoOjos("O01", "Pestañina Sky High", 18.0, "L'Oréal", true);
-        Producto paletaSombras = new ProductoOjos("O02", "Paleta Nude", 45.0, "Urban Decay", false);
+        // 1. CARGAR CATÁLOGO DE PRODUCTOS DESDE MYSQL
+        System.out.println("\n[BD] Conectando a MySQL para cargar catálogo de productos...");
+        ProductoDAO prodDAO = new ProductoDAO();
+        List<Producto> catalogo = prodDAO.obtenerCatalogo(); 
 
-        // 3. Probar la interfaz Descontable (Aplicar descuentos antes de la venta)
-        System.out.println("--- Aplicando promociones del mes ---");
-        baseMatte.aplicarDescuento(10); // 10% de descuento sobre el precio base
-        paletaSombras.aplicarDescuento(20); // 20% de descuento sobre el precio base
-        System.out.println();
+        // Validación por si la base de datos está vacía o apagada en XAMPP
+        if (catalogo.isEmpty()) {
+            System.out.println("\n[ALERTA] No se pudieron cargar los productos.");
+            System.out.println("Asegúrese de que XAMPP esté encendido y la tabla 'productos' tenga datos.");
+            scanner.close();
+            return;
+        }
 
-        // 4. Crear la transacción de venta
-        Venta transaccion = new Venta(5001, cliente1);
+        // 2. SISTEMA OBSERVER: CARGAR CLIENTES Y NOTIFICAR DESCUENTOS
+        System.out.println("\n[BD] Cargando lista de clientes suscritos al boletín...");
+        ClienteDAO clienteDAO = new ClienteDAO();
+        List<Cliente> listaClientesBD = clienteDAO.obtenerClientesSuscritos();
 
-        // 5. Agregar registros al sistema (Requerimiento 6)
-        transaccion.agregarProducto(baseMatte);
-        transaccion.agregarProducto(baseluminosa);
-        transaccion.agregarProducto(corrector);
-        transaccion.agregarProducto(rimel);
-        transaccion.agregarProducto(paletaSombras);
+        // Creamos la tienda que actuará como el "Sujeto" (Subject) a observar
+        TiendaMaquillaje tienda = new TiendaMaquillaje("Glamour Makeup Store");
 
-        // 6. Mostrar el informe completo y el cálculo matemático
-        transaccion.mostrarDetalleVenta();
+        // Suscribimos de forma dinámica a todos los clientes extraídos de MySQL
+        if (!listaClientesBD.isEmpty()) {
+            for (Cliente c : listaClientesBD) {
+                tienda.suscribir(c);
+            }
+            
+            // Disparamos la notificación mensual automática 
+            String promocionDelMes = "¡Especial de Mayo! 20% de descuento en Paletas de Ojos y 10% en Bases de Rostro.";
+            tienda.notificarDescuentosMes(promocionDelMes);
+            
+            System.out.println("=================================================");
+            System.out.println("Presione ENTER para continuar al sistema de facturación...");
+            scanner.nextLine();
+        } else {
+            System.out.println("[Aviso] No hay clientes registrados en la BD para notificar.");
+        }
+
+        // 3. CAPTURA DE DATOS DEL CLIENTE ACTUAL PARA LA VENTA Y REGISTRO EN BD
+        System.out.println("\n=================================================");
+        System.out.println("          APERTURA DE NUEVA VENTA                ");
+        System.out.println("=================================================");
+        System.out.print("Ingrese el nombre del cliente comprador: ");
+        String nombreCliente = scanner.nextLine();
+        System.out.print("Ingrese el email del cliente comprador: ");
+        String emailCliente = scanner.nextLine();
+
+        // A) Creamos el objeto cliente en Java
+        Cliente clienteActual = new Cliente(nombreCliente, emailCliente);
+
+        // B) Guardamos este cliente recién ingresado directamente en MySQL
+        clienteDAO.insertarCliente(clienteActual);
+
+        // C) Creamos la transacción de venta como lo hacías normalmente
+        Venta transaccion = new Venta(9001, clienteActual);
+
+        // APLICACIÓN DE DESCUENTOS EN MEMORIA (Para pruebas lógicas de POO)
+        catalogo.get(0).aplicarDescuento(10); 
+
+        // 4. MENÚ INTERACTIVO DE COMPRAS
+        boolean continuarComprando = true;
+
+        while (continuarComprando) {
+            System.out.println("\n=================================================");
+            System.out.println("       CATÁLOGO DISPONIBLE   ");
+            System.out.println("=================================================");
+            
+            // Mostramos los productos aplicando Polimorfismo en ejecución
+            for (int i = 0; i < catalogo.size(); i++) {
+                System.out.print("[" + (i + 1) + "] ");
+                catalogo.get(i).mostrarInformacion(); 
+            }
+            
+            int opcionFacturar = catalogo.size() + 1;
+            System.out.println("[" + opcionFacturar + "] >> FINALIZAR COMPRA Y GENERAR FACTURA <<");
+            System.out.println("[0] Cancelar venta y salir");
+            System.out.print("\nSeleccione una opción: ");
+
+            int opcion = -1;
+            if (scanner.hasNextInt()) {
+                opcion = scanner.nextInt();
+                scanner.nextLine(); // Limpiar el buffer
+            } else {
+                System.out.println("¡Error! Ingrese un número entero válido.");
+                scanner.nextLine(); 
+                continue;
+            }
+
+            if (opcion > 0 && opcion <= catalogo.size()) {
+                Producto productoSeleccionado = catalogo.get(opcion - 1);
+                transaccion.agregarProducto(productoSeleccionado);
+                System.out.println("-> ¡" + productoSeleccionado.getNombre() + " añadido al carrito!");
+            } 
+            else if (opcion == opcionFacturar) {
+                transaccion.mostrarDetalleVenta();
+                continuarComprando = false; 
+            } 
+            else if (opcion == 0) {
+                System.out.println("\nCompra cancelada por el usuario.");
+                continuarComprando = false;
+            } 
+            else {
+                System.out.println("Opción inválida. Intente de nuevo.");
+            }
+        }
+
+        scanner.close();
+        System.out.println("\n--- SISTEMA FINALIZADO DE FORMA CORRECTA ---");
     }
 }
